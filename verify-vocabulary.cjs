@@ -69,15 +69,14 @@ async function verify(){
     await action('reveal').click();
     await action('know').click();
     await page.getByRole('heading',{name:'Session complete'}).waitFor();
-    assert.equal((await saved()).progress[first].unknown,false);
-    assert((await saved()).progress[first].due>Date.now()+23*3600000);
+    assert.equal((await saved()).progress[first].unknown,true);
 
     await open('words');
     await page.locator('#word-search').fill('reluctant');
     assert.equal(await page.locator('.dictionary-row').count(),1);
     await page.locator('summary').click();
     assert.match(await page.locator('.word-meaning').innerText(),/неохотно/);
-    await action('toggle-word').click();
+    if(!(await saved()).progress.reluctant?.unknown) await action('toggle-word').click();
     assert.equal((await saved()).progress.reluctant.unknown,true);
     await page.reload();
     assert.equal((await saved()).progress.reluctant.unknown,true);
@@ -130,15 +129,16 @@ async function verify(){
     await action('check').click();
     assert.equal((await saved()).progress[item.word].unknown,true);
 
-    // A due item must appear again based on its saved timestamp.
+    // My words stays available immediately after successful review.
     await page.evaluate(()=>{
       const data=JSON.parse(localStorage.getItem('mb-trades-vocabulary-v1'));
-      for(const p of Object.values(data.progress)) p.due=Date.now()+86400000;
-      data.progress.reluctant.due=Date.now()-1;
+      for(const p of Object.values(data.progress)) p.unknown=false;
+      data.progress.reluctant.unknown=true;
       localStorage.setItem('mb-trades-vocabulary-v1',JSON.stringify(data));
     });
+    await page.reload();
     await open('learn');
-    await page.locator('[name=scope]').selectOption('due');
+    await page.locator('[name=scope]').selectOption('unknown');
     await page.getByRole('button',{name:'Start learning →'}).click();
     assert.equal((await saved()).session.items[0].word,'reluctant');
     for(const viewport of [{width:1180,height:820},{width:390,height:844},{width:820,height:1180}]){

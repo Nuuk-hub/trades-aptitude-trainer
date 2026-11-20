@@ -2,7 +2,6 @@
   'use strict';
   const app=document.getElementById('vocabulary-app');
   const key='mb-trades-vocabulary-v1';
-  const day=86400000;
   const entries=vocabularyEntries;
   let state={progress:{},session:null,last:null};
   let storageAvailable=true;
@@ -23,9 +22,8 @@
   };
   const button=(label,action,cls='',attrs='')=>'<button type="button" class="'+cls+'" data-do="'+action+'" '+attrs+'>'+label+'</button>';
   const link=(label,target,cls='')=>'<a class="button '+cls+'" href="#'+target+'">'+label+'</a>';
-  const isDue=word=>state.progress[word]?.due<=Date.now();
   const isUnknown=word=>Boolean(state.progress[word]?.unknown);
-  const status=word=>isUnknown(word)?'Review again':isDue(word)?'Due for review':state.progress[word]?'Learning':'New';
+  const status=word=>isUnknown(word)?'In My words':state.progress[word]?'Studied':'New';
   const hasSpeech=()=>('speechSynthesis' in window && 'SpeechSynthesisUtterance' in window);
 
   try {
@@ -48,8 +46,7 @@
     previous.attempts++;
     previous.correct+=Number(success);
     previous.streak=success&&!aided?previous.streak+1:0;
-    previous.unknown=!success||aided;
-    previous.due=Date.now()+(previous.unknown?600000:[1,3,7,14,30][Math.min(4,previous.streak-1)]*day);
+    previous.unknown=Boolean(previous.unknown||!success||aided);
     previous.lastSeen=Date.now();
     state.progress[word]=previous;
   }
@@ -96,15 +93,15 @@
     return {
       seen:Object.keys(state.progress).length,
       unknown:vocabulary.filter(e=>isUnknown(e.word)).length,
-      due:vocabulary.filter(e=>isDue(e.word)).length
+      attempts:Object.values(state.progress).reduce((sum,p)=>sum+(p.attempts||0),0)
     };
   }
   function filterEntries(scope){
-    return vocabulary.filter(e=>scope==='unknown'?isUnknown(e.word):scope==='due'?isDue(e.word):true);
+    return vocabulary.filter(e=>scope==='unknown'?isUnknown(e.word):true);
   }
   function rank(word){
     const p=state.progress[word];
-    return isDue(word)&&p?.unknown?5:isDue(word)?4:!p?3:p.unknown?2:1;
+    return p?.unknown?4:!p?3:1;
   }
   function makeMeaningItem(word){
     const answer=entries.get(word).meaning;
@@ -133,7 +130,7 @@
     if(!chosen.length){
       const el=document.getElementById('setup-notice');
       el.hidden=false;
-      el.textContent=scope==='due'?'No words are due yet. Choose All words or My words to keep studying.':
+      el.textContent=scope==='unknown'?'My words is empty for this practice type. Add words from the library or choose All words.':
         'No words match these settings. Try All words or Meaning practice.';
       return;
     }
@@ -145,7 +142,7 @@
       const relations=vocabularyRelations.filter(r=>r.word===entry.word);
       return type==='mixed'&&relations.length?makeRelationItem(shuffle(relations)[0]):makeMeaningItem(entry.word);
     });
-    state.session={mode,items,pos:0,revealed:false,selected:null,checked:false,aided:false,optionHelp:[],requeued:[],correct:0,attempts:0};
+    state.session={mode,items,pos:0,revealed:false,selected:null,checked:false,aided:false,optionHelp:[],requeued:[],correct:0,attempts:0,history:[]};
     persist();
     go('session');
   }
@@ -158,7 +155,7 @@
   function moveNext(){
     const s=state.session;
     if(s.pos+1>=s.items.length){
-      state.last={mode:s.mode,attempts:s.attempts,correct:s.correct,words:new Set(s.items.map(item=>item.word)).size};
+      state.last={mode:s.mode,attempts:s.attempts,correct:s.correct,words:new Set(s.items.map(item=>item.word)).size,history:s.history||[],partialHistory:s.partialHistory};
       state.session=null;
       persist();
       go('results');
@@ -174,10 +171,29 @@
     persist();
     render(true);
   }
+  function logAttempt(s,item,correct,selected){
+    if(!s.history){s.history=[];s.partialHistory=s.attempts>0;}
+    s.history.push({word:item.word,correct,selected,aided:s.aided,answer:item.answer||'Marked known'});
+  }
+  function vocabularyBreakdown(last){
+    if(!last.history?.length||last.partialHistory) return '<p>Earlier session: '+last.correct+' / '+last.attempts+' successful answers, including retries. Detailed breakdown is available for new sessions.</p>';
+    const first=new Map(),retries=[];
+    for(const a of last.history){
+      if(first.has(a.word)) retries.push(a);else first.set(a.word,a);
+    }
+    const initial=[...first.values()];
+    const mistakes=initial.filter(a=>!a.correct);
+    return '<div class="mini-stats"><div class="stat"><strong>'+initial.filter(a=>a.correct).length+' / '+initial.length+'</strong><span>First attempt · without help</span></div>'+
+      '<div class="stat"><strong>'+retries.filter(a=>a.correct).length+' / '+retries.length+'</strong><span>Retry answers successful</span></div></div>'+
+      '<h2>Words from this session to revisit</h2>'+
+      (mistakes.length?mistakes.map(a=>'<article class="review-item"><h3>'+html(a.word)+'</h3><p>First response: '+html(a.selected)+(a.aided?' · with meaning help':'')+'</p><p>Expected answer: '+html(a.answer)+'</p>'+
+        '<p class="muted">'+(last.history.some(later=>later.word===a.word&&later.correct)?'Corrected on retry':'Needs another try')+'</p>'+meaning(a.word,true)+'</article>').join(''):'<p>No words need another try from this session.</p>');
+  }
   function gradeLearn(success){
     const s=state.session;
     const item=s.items[s.pos];
     saveWord(item.word,success);
+    logAttempt(s,item,success,success?'Marked known':'Review again');
     s.attempts++;
     s.correct+=Number(success);
     if(!success) repeatLater(s,item);
@@ -190,6 +206,7 @@
     const item=s.items[s.pos];
     const success=item.options[s.selected]===item.answer;
     saveWord(item.word,success,s.aided);
+    logAttempt(s,item,success&&!s.aided,item.options[s.selected]);
     s.correct+=Number(success&&!s.aided);
     s.attempts++;
     s.checked=true;
@@ -203,19 +220,19 @@
     const count=counts();
     return '<section class="vocab-hero"><p class="eyebrow">Verbal Comprehension vocabulary</p><h1>Make unfamiliar words familiar.</h1>'+
       '<p>Learn English words with Russian translations, clear English meanings and pronunciation.</p></section>'+
-      '<section class="stats">'+[['Words & phrases',vocabulary.length],['Words studied',count.seen],['My words',count.unknown],['Due for review',count.due]].map(([label,value])=>'<div class="stat"><strong>'+value+'</strong><span>'+label+'</span></div>').join('')+'</section>'+
+      '<section class="stats">'+[['Words & phrases',vocabulary.length],['Words studied',count.seen],['My words',count.unknown],['Answers recorded',count.attempts]].map(([label,value])=>'<div class="stat"><strong>'+value+'</strong><span>'+label+'</span></div>').join('')+'</section>'+
       (state.session?'<div class="resume"><span>Your '+(state.session.mode==='learn'?'cards':'practice')+' session is saved.</span>'+link('Resume session','session','primary')+'</div>':'')+
       '<div class="cards vocab-modes"><article class="card"><span class="mode-symbol" aria-hidden="true">Aa</span><div><p class="eyebrow">Learn</p><h2>Turn over a card</h2><p>Look at a word, listen, then reveal its translation and meaning. Choose which words to review again.</p></div><div class="card-foot">'+link('Learn words →','learn','primary')+'</div></article>'+
       '<article class="card"><span class="mode-symbol peach" aria-hidden="true">⇄</span><div><p class="eyebrow">Practice</p><h2>Find the connection</h2><p>Choose a synonym, an antonym or an English meaning. Reveal a word’s meaning whenever you need it.</p></div><div class="card-foot">'+link('Practice words →','practice','primary')+'</div></article></div>'+
       '<div class="actions">'+link('Browse all words','words','outline')+link('My words ('+count.unknown+')','my-words','outline')+'</div>'+
-      '<p class="muted help-copy">Mark words Review again to keep them in My words. An unaided correct answer schedules a review for the next day. Listen uses an English voice supplied by your browser.</p>';
+      '<p class="muted help-copy">Study My words any time. Words stay in the list until you choose Remove from My words in the library. Listen uses an English voice supplied by your browser.</p>';
   }
   function setup(mode){
     const learn=mode==='learn';
     return '<div class="setup"><a class="back" href="#home">← Vocabulary home</a><section class="panel"><p class="eyebrow">'+(learn?'Learn':'Practice')+'</p><h1>'+(learn?'Word by word.':'Put your words to work.')+'</h1>'+
       '<p class="muted">'+(learn?'Reveal each card, then choose I know this or Review again.':'Synonym and antonym tasks use pairs from the verbal question bank. Meaning practice covers the whole vocabulary.')+'</p>'+
       '<form id="vocabulary-setup" data-mode="'+mode+'"><div class="fields">'+
-      '<label>Word selection<select name="scope"><option value="all">All words</option><option value="unknown">My words</option><option value="due">Due for review</option></select></label>'+
+      '<label>Word selection<select name="scope"><option value="all">All words</option><option value="unknown">My words</option></select></label>'+
       '<label>Session length<select name="count"><option value="5">5 words</option><option value="10" selected>10 words</option><option value="20">20 words</option></select></label>'+
       (!learn?'<label>Practice type<select name="type"><option value="mixed">Mixed</option><option value="meaning">English meaning</option><option value="synonym">Synonyms</option><option value="antonym">Antonyms</option></select></label>':'')+
       '</div><div class="actions"><button type="submit" class="primary">Start '+(learn?'learning':'practice')+' →</button></div></form>'+
@@ -250,11 +267,11 @@
       '<div class="actions session-actions">'+(learn?(s.revealed?button('Review again','again','outline')+button('I know this →','know','primary'):''):
         s.checked?button(s.pos+1===s.items.length?'See results →':'Next word →','next','primary'):
         button('Check answer','check','primary',s.selected===null?'disabled':''))+'</div></section>'+
-        '<p class="muted help-copy">Each word can be added once more to this session for a retry. My words and due reviews remain available from Vocabulary home.</p></div>';
+        '<p class="muted help-copy">Each word can be added once more to this session for a retry. My words is available any time from Vocabulary home.</p></div>';
   }
   function filteredWords(){
     const needle=search.trim().toLocaleLowerCase();
-    return vocabulary.filter(entry=>(wordFilter==='all'||wordFilter==='unknown'&&isUnknown(entry.word)||wordFilter==='due'&&isDue(entry.word))&&
+    return vocabulary.filter(entry=>(wordFilter==='all'||wordFilter==='unknown'&&isUnknown(entry.word))&&
       (!needle||[entry.word,entry.ru,entry.meaning].some(text=>text.toLocaleLowerCase().includes(needle))));
   }
   function wordRows(){
@@ -270,14 +287,14 @@
   function dictionary(){
     return '<div class="work"><a class="back" href="#home">← Vocabulary home</a><div class="section-head"><h1>Word library</h1></div>'+
       '<div class="fields dictionary-filters"><label>Search words or translations<input id="word-search" type="search" placeholder="e.g. reluctant or неохотно" value="'+attr(search)+'" autocomplete="off"></label>'+
-      '<label>Show<select id="word-filter"><option value="all" '+(wordFilter==='all'?'selected':'')+'>All words</option><option value="unknown" '+(wordFilter==='unknown'?'selected':'')+'>My words</option><option value="due" '+(wordFilter==='due'?'selected':'')+'>Due for review</option></select></label></div><div id="word-list">'+wordRows()+'</div></div>';
+      '<label>Show<select id="word-filter"><option value="all" '+(wordFilter==='all'?'selected':'')+'>All words</option><option value="unknown" '+(wordFilter==='unknown'?'selected':'')+'>My words</option></select></label></div><div id="word-list">'+wordRows()+'</div></div>';
   }
   function resultScreen(){
     const last=state.last;
     if(!last) return dashboard();
     return '<div class="setup"><a class="back" href="#home">← Vocabulary home</a><section class="panel"><p class="eyebrow">'+(last.mode==='learn'?'Learn':'Practice')+'</p><h1>Session complete</h1>'+
-      '<div class="mini-stats"><div class="stat"><strong>'+last.words+'</strong><span>Different words</span></div><div class="stat"><strong>'+last.correct+' / '+last.attempts+'</strong><span>'+(last.mode==='learn'?'Marked known':'Correct without help')+' · includes retries</span></div></div>'+
-      '<p class="muted">Words needing another try are in My words. A successful review is scheduled again after 24 hours, then at longer intervals.</p>'+
+      vocabularyBreakdown(last)+
+      '<p class="muted">My words is available any time. Words stay there until you remove them in the library.</p>'+
       '<div class="actions">'+link('Continue '+(last.mode==='learn'?'learning':'practice'),last.mode,'primary')+link('My words','my-words','outline')+link('Vocabulary home','home','quiet')+'</div></section></div>';
   }
   function render(focus=false,focusId){
@@ -316,8 +333,6 @@
     if(action==='toggle-word'){
       const p=state.progress[word]||{attempts:0,correct:0,streak:0};
       p.unknown=!p.unknown;
-      if(p.unknown) p.due=Date.now();
-      else p.due=Date.now()+day;
       state.progress[word]=p;
       persist();
       render();

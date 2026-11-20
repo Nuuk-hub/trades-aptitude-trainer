@@ -88,11 +88,11 @@ async function browserChecks() {
       const parts=new URL(route.request().url());
       const asset=parts.pathname.slice('/trainer/'.length)||'index.html';
       if (parts.origin!=='https://trainer.invalid'||!parts.pathname.startsWith('/trainer/')||
-          !['index.html','style.css','app.js',...sourceFiles].includes(asset)) {
+          !['index.html','style.css','app.js','vocabulary-data.js','vocabulary-examples.js','word-help.js','progress-tools.js','electrician.png',...sourceFiles].includes(asset)) {
         await route.fulfill({status:404});
         return;
       }
-      const type=asset.endsWith('.js')?'text/javascript':asset.endsWith('.css')?'text/css':'text/html';
+      const type=asset.endsWith('.png')?'image/png':asset.endsWith('.js')?'text/javascript':asset.endsWith('.css')?'text/css':'text/html';
       await route.fulfill({path:path.join(base,asset),contentType:type+'; charset=utf-8'});
     });
     const saved=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('mb-trades-trainer-v1')));
@@ -129,7 +129,7 @@ async function browserChecks() {
     const reviewed=(await saved()).progress[first];
     assert.equal(reviewed.streak,1);
     assert.equal(reviewed.missed,false);
-    assert(reviewed.due>Date.now()+23*3600000);
+    assert.equal(reviewed.review,true);
     await action('next').click();
     await page.getByRole('heading',{name:'Practice complete'}).waitFor();
     assert.equal((await saved()).results.correct,1);
