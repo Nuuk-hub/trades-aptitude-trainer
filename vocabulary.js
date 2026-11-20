@@ -11,6 +11,8 @@
   let wordsLimit=40;
   let undoWord=null;
   let undoTimer=null;
+  let undoSession=null;
+  let undoLast=null;
   const html=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const attr=html;
   const route=()=>location.hash.slice(1)||'home';
@@ -140,6 +142,7 @@
       return;
     }
     if(state.session&&!confirm('Replace your current vocabulary session? Recorded word progress will be kept.')) return;
+    undoSession=null;
     stopSpeech();
     const items=chosen.map(entry=>{
       if(mode==='learn') return {word:entry.word,type:'learn'};
@@ -198,6 +201,7 @@
   function viewLearn(reviewAgain){
     const s=state.session;
     if(!s||s.mode!=='learn')return;
+    undoSession=null;
     const item=s.items[s.pos];
     const p=state.progress[item.word]||{attempts:0,correct:0,streak:0};
     p.views=(p.views||0)+1;
@@ -213,6 +217,7 @@
   function gradePractice(){
     const s=state.session;
     if(s.checked||s.selected===null) return;
+    undoSession=null;
     const item=s.items[s.pos];
     const success=item.options[s.selected]===item.answer;
     saveWord(item.word,success,s.aided);
@@ -287,7 +292,7 @@
           '“'+html(item.word)+'” and “'+html(item.answer)+'” have '+(item.type==='synonym'?'similar':'opposite')+' meanings.')+'</p>'+
         (item.type!=='meaning'?meaning(item.answer):'')+
         (s.aided?'<p>You opened a meaning. This word will stay in My words for another try.</p>':'')+'</div>':'')+
-      '<div class="actions session-actions">'+(learn?button('Next word →','next','outline learn-choice')+button('Review again','again','outline learn-choice'):
+      '<div class="actions session-actions">'+(learn?button('Next word →','next','outline learn-choice')+button('Review again','again','outline learn-choice')+button('Hide word','hide-word','quiet hide-word','data-word="'+attr(item.word)+'"'):
         s.checked?button(s.pos+1===s.items.length?'See results →':'Next word →','next','primary'):
         button('Check answer','check','primary',s.selected===null?'disabled':''))+'</div></section>'+
         '<p class="muted help-copy">Each word can be added once more to this session for a retry. My words is available any time from Vocabulary home.</p></div>';
@@ -376,6 +381,7 @@
     const index=Number(control.dataset.index);
     if(action==='listen') return listen(word);
     if(action==='hide-word'||action==='restore-word'){
+      const sessionBefore=route()==='session'&&state.session?.mode==='learn'?JSON.parse(JSON.stringify(state.session)):null;
       const previous=state.progress[word];
       state.progress[word]={...(previous||{attempts:0,correct:0,streak:0}),hidden:action==='hide-word'};
       if(!persist()){
@@ -384,17 +390,24 @@
         return;
       }
       clearTimeout(undoTimer);
+      stopSpeech();
+      undoSession=sessionBefore;
+      undoLast=state.last;
       undoWord=action==='hide-word'?word:null;
-      if(undoWord)undoTimer=setTimeout(()=>{undoWord=null;updateUndo();},10000);
+      if(undoWord)undoTimer=setTimeout(()=>{undoWord=null;undoSession=null;undoLast=null;updateUndo();},10000);
       render();
       return;
     }
     if(action==='undo-hide'&&undoWord){
       const wordToRestore=undoWord;
       state.progress[wordToRestore].hidden=false;
-      if(!persist()){state.progress[wordToRestore].hidden=true;render();return;}
+      const sessionAfter=state.session,lastAfter=state.last;
+      if(undoSession){state.session=undoSession;state.last=undoLast;}
+      if(!persist()){state.progress[wordToRestore].hidden=true;state.session=sessionAfter;state.last=lastAfter;render();return;}
       clearTimeout(undoTimer);
       undoWord=null;
+      undoSession=null;
+      undoLast=null;
       render();
       return;
     }

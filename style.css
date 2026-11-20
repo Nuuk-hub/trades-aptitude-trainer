@@ -25,7 +25,7 @@ main{min-height:70vh;padding-block:32px 14px}
 main:focus{outline:none}
 footer{color:var(--muted);font-size:.85rem;padding-block:26px 34px}
 .footer-note{font-size:calc(.85rem / 1.5);line-height:1.5}
-.project-credit{margin-top:18px;font-size:calc(.85rem / 1.5)}
+.footer-author{color:var(--green);font-weight:700;text-decoration:underline;text-underline-offset:2px}
 h1,h2,h3,p{margin:0}
 h1{font-size:clamp(1.9rem,4vw,3rem);line-height:1.09;letter-spacing:-.045em}
 h2{font-size:1.43rem;letter-spacing:-.027em}

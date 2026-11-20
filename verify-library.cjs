@@ -46,8 +46,32 @@ async function verify(){
   const a=await action('next').boundingBox(),b=await action('again').boundingBox();
   assert.equal(a.width,b.width);
   assert.equal(a.height,b.height);
+  await action('hide-word').click();
+  assert.equal((await saved()).progress.reluctant.hidden,true);
+  assert.equal(await page.locator('.vocab-word').count(),0);
+  await action('undo-hide').click();
+  assert.equal((await saved()).progress.reluctant.hidden,false);
+  assert.equal(await page.locator('.vocab-word').innerText(),'reluctant');
   await action('next').click();
   assert.equal((await saved()).progress.reluctant.hidden,false);
+
+  // A mid-session hide advances immediately; Undo must not rewind later answers.
+  await open('learn');
+  await page.locator('[name=count]').selectOption('5');
+  await page.locator('#vocabulary-setup button[type=submit]').click();
+  const hiddenTarget=(await saved()).session.items[0].word;
+  await action('hide-word').click();
+  assert.equal((await saved()).progress[hiddenTarget].hidden,true);
+  assert.notEqual((await saved()).session.items[0].word,hiddenTarget);
+  await action('undo-hide').click();
+  assert.equal((await saved()).session.items[0].word,hiddenTarget);
+  await action('hide-word').click();
+  await action('next').click();
+  const afterNext=(await saved()).session;
+  await action('undo-hide').click();
+  assert.equal((await saved()).session.pos,afterNext.pos);
+  assert.equal((await saved()).session.history.length,afterNext.history.length);
+  assert.equal((await saved()).progress[hiddenTarget].hidden,false);
 
   // All hidden except one target: both practice types and Learn must respect hiding.
   await page.evaluate(key=>{
@@ -94,12 +118,12 @@ async function verify(){
    await page.goto('https://trainer.invalid/'+file);
    const sizes=await page.evaluate(()=>({
     note:parseFloat(getComputedStyle(document.querySelector('.footer-note')).fontSize),
-    credit:parseFloat(getComputedStyle(document.querySelector('.project-credit')).fontSize),
-    gap:parseFloat(getComputedStyle(document.querySelector('.project-credit')).marginTop)
+    link:document.querySelector('.footer-author').getAttribute('href'),
+    footer:document.querySelector('.footer-note').textContent
    }));
-   assert(Math.abs(sizes.credit-sizes.note)<.02);
    assert(Math.abs(sizes.note-(13.6/1.5))<.05);
-   assert(sizes.gap>=16);
+   assert.equal(sizes.link,'https://github.com/Nuuk-hub');
+   assert(sizes.footer.endsWith('questions. 2026'));
   }
   // Isolate current browser choices from a new visitor.
   const fresh=await browser.newPage();

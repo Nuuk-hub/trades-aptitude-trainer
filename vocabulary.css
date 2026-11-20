@@ -35,5 +35,6 @@
 #vocabulary-app:focus{outline:none}
 .learn-choice{min-height:44px;width:145px;padding:7px 12px;font-size:.9rem}
 .dictionary-row .hide-word{margin-left:auto}
+.session-actions .hide-word{margin-left:auto;font-size:.85rem;padding:7px 10px;min-height:44px}
 .word-undo{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:10;max-width:calc(100% - 32px);padding:10px 15px;border:1px solid var(--line);border-radius:12px;box-shadow:0 5px 22px #173c3126;background:var(--paper);display:flex;align-items:center;gap:12px}
 @media(max-width:470px){.vocab-hero{padding:25px}.dictionary-filters{grid-template-columns:1fr}.dictionary-row{padding:16px}.word-card .vocab-word{font-size:2.6rem}.word-status{white-space:normal;text-align:right}}
