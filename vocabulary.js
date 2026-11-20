@@ -9,6 +9,8 @@
   let search='';
   let wordFilter='all';
   let wordsLimit=40;
+  let undoWord=null;
+  let undoTimer=null;
   const html=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const attr=html;
   const route=()=>location.hash.slice(1)||'home';
@@ -23,6 +25,7 @@
   const button=(label,action,cls='',attrs='')=>'<button type="button" class="'+cls+'" data-do="'+action+'" '+attrs+'>'+label+'</button>';
   const link=(label,target,cls='')=>'<a class="button '+cls+'" href="#'+target+'">'+label+'</a>';
   const isUnknown=word=>Boolean(state.progress[word]?.unknown);
+  const isHidden=word=>Boolean(state.progress[word]?.hidden);
   const status=word=>isUnknown(word)?'In My words':state.progress[word]?'Studied':'New';
   const hasSpeech=()=>('speechSynthesis' in window && 'SpeechSynthesisUtterance' in window);
 
@@ -34,8 +37,8 @@
   } catch {storageAvailable=false;}
 
   function persist(){
-    try {localStorage.setItem(key,JSON.stringify(state));storageAvailable=true;}
-    catch {storageAvailable=false;}
+    try {localStorage.setItem(key,JSON.stringify(state));storageAvailable=true;return true;}
+    catch {storageAvailable=false;return false;}
   }
   function go(target){
     if(route()===target) render();
@@ -91,17 +94,17 @@
   }
   function counts(){
     return {
-      seen:Object.keys(state.progress).length,
-      unknown:vocabulary.filter(e=>isUnknown(e.word)).length,
+      seen:Object.values(state.progress).filter(p=>p.attempts>0).length,
+      unknown:vocabulary.filter(e=>isUnknown(e.word)&&!isHidden(e.word)).length,
       attempts:Object.values(state.progress).reduce((sum,p)=>sum+(p.attempts||0),0)
     };
   }
   function filterEntries(scope){
-    return vocabulary.filter(e=>scope==='unknown'?isUnknown(e.word):true);
+    return vocabulary.filter(e=>!isHidden(e.word)&&(scope==='unknown'?isUnknown(e.word):true));
   }
   function rank(word){
     const p=state.progress[word];
-    return p?.unknown?4:!p?3:1;
+    return p?.unknown?4:!p?.attempts?3:1;
   }
   function makeMeaningItem(word){
     const answer=entries.get(word).meaning;
@@ -121,7 +124,7 @@
     const scope=form?.elements.scope.value||'all';
     const type=form?.elements.type?.value||'mixed';
     const count=singleWord?1:Number(form?.elements.count.value||10);
-    let candidates=singleWord?[{word:singleWord}]:filterEntries(scope);
+    let candidates=singleWord&&!isHidden(singleWord)?[{word:singleWord}]:singleWord?[]:filterEntries(scope);
     if(mode==='practice'&&['synonym','antonym'].includes(type)){
       const allowed=new Set(candidates.map(e=>e.word));
       candidates=vocabularyRelations.filter(r=>r.type===type&&allowed.has(r.word));
@@ -129,9 +132,11 @@
     const chosen=shuffle(candidates).sort((a,b)=>rank(b.word)-rank(a.word)).slice(0,count);
     if(!chosen.length){
       const el=document.getElementById('setup-notice');
-      el.hidden=false;
-      el.textContent=scope==='unknown'?'My words is empty for this practice type. Add words from the library or choose All words.':
-        'No words match these settings. Try All words or Meaning practice.';
+      if(el){
+        el.hidden=false;
+        el.textContent=scope==='unknown'?'My words is empty for this practice type. Add words from the library or choose All words.':
+          'No words match these settings. Restore hidden words in the library or choose another practice type.';
+      }
       return;
     }
     if(state.session&&!confirm('Replace your current vocabulary session? Recorded word progress will be kept.')) return;
@@ -176,6 +181,7 @@
     s.history.push({word:item.word,correct,selected,aided:s.aided,answer:item.answer||'Marked known'});
   }
   function vocabularyBreakdown(last){
+    if(!last.attempts) return '<p>No words were answered in this session.</p>';
     if(!last.history?.length||last.partialHistory) return '<p>Earlier session: '+last.correct+' / '+last.attempts+' successful answers, including retries. Detailed breakdown is available for new sessions.</p>';
     const first=new Map(),retries=[];
     for(const a of last.history){
@@ -241,6 +247,19 @@
   function sessionScreen(){
     const s=state.session;
     if(!s) return dashboard();
+    const pending=s.items.slice(s.pos).filter((item,i)=>!isHidden(item.word)||(i===0&&s.checked));
+    const currentWord=s.items[s.pos]?.word;
+    s.items=s.items.slice(0,s.pos).concat(pending);
+    if(!pending.length){
+      state.last={mode:s.mode,attempts:s.attempts,correct:s.correct,words:new Set((s.history||[]).map(item=>item.word)).size,history:s.history||[],partialHistory:s.partialHistory};
+      state.session=null;
+      persist();
+      return resultScreen();
+    }
+    if(s.items[s.pos].word!==currentWord){
+      s.revealed=false;s.selected=null;s.checked=false;s.aided=false;s.optionHelp=[];
+    }
+    persist();
     const item=s.items[s.pos];
     const learn=s.mode==='learn';
     const prompt=learn?'Say the meaning to yourself before revealing the card.':item.type==='synonym'?'Choose the closest synonym.':item.type==='antonym'?'Choose the closest antonym.':'Choose the English meaning.';
@@ -264,14 +283,14 @@
           '“'+html(item.word)+'” and “'+html(item.answer)+'” have '+(item.type==='synonym'?'similar':'opposite')+' meanings.')+'</p>'+
         (item.type!=='meaning'?meaning(item.answer):'')+
         (s.aided?'<p>You opened a meaning. This word will stay in My words for another try.</p>':'')+'</div>':'')+
-      '<div class="actions session-actions">'+(learn?button('I know this →','know','outline know-word')+(s.revealed?button('Review again','again','outline'):''):
+      '<div class="actions session-actions">'+(learn?button('I know this →','know','outline learn-choice')+(s.revealed?button('Review again','again','outline learn-choice'):''):
         s.checked?button(s.pos+1===s.items.length?'See results →':'Next word →','next','primary'):
         button('Check answer','check','primary',s.selected===null?'disabled':''))+'</div></section>'+
         '<p class="muted help-copy">Each word can be added once more to this session for a retry. My words is available any time from Vocabulary home.</p></div>';
   }
   function filteredWords(){
     const needle=search.trim().toLocaleLowerCase();
-    return vocabulary.filter(entry=>(wordFilter==='all'||wordFilter==='unknown'&&isUnknown(entry.word))&&
+    return vocabulary.filter(entry=>(wordFilter==='hidden'?isHidden(entry.word):!isHidden(entry.word)&&(wordFilter==='all'||wordFilter==='unknown'&&isUnknown(entry.word)))&&
       (!needle||[entry.word,entry.ru,entry.meaning].some(text=>text.toLocaleLowerCase().includes(needle))));
   }
   function wordRows(){
@@ -280,14 +299,15 @@
       (matching.length?matching.slice(0,wordsLimit).map(entry=>'<article class="panel dictionary-row"><div class="dictionary-head"><h2 lang="en">'+html(entry.word)+'</h2><span class="word-status">'+status(entry.word)+'</span></div>'+
         '<details><summary>Show meaning</summary>'+meaning(entry.word,true)+'</details>'+
         '<div class="actions">'+listenButton(entry.word)+button(isUnknown(entry.word)?'Remove from My words':'Add to My words','toggle-word','quiet','data-word="'+attr(entry.word)+'" aria-pressed="'+isUnknown(entry.word)+'"')+
-        button('Study this word','study','quiet','data-word="'+attr(entry.word)+'"')+'</div></article>').join(''):
+        (!isHidden(entry.word)?button('Study this word','study','quiet','data-word="'+attr(entry.word)+'"'):'')+
+        button(isHidden(entry.word)?'Restore word':'Hide word',isHidden(entry.word)?'restore-word':'hide-word','quiet hide-word','data-word="'+attr(entry.word)+'"')+'</div></article>').join(''):
         '<p class="notice">No words match this selection. Try All words or a different search.</p>')+
       (matching.length>wordsLimit?button('Show more words','more','outline'):'');
   }
   function dictionary(){
     return '<div class="work"><a class="back" href="#home">← Vocabulary home</a><div class="section-head"><h1>Word library</h1></div>'+
       '<div class="fields dictionary-filters"><label>Search words or translations<input id="word-search" type="search" placeholder="e.g. reluctant or неохотно" value="'+attr(search)+'" autocomplete="off"></label>'+
-      '<label>Show<select id="word-filter"><option value="all" '+(wordFilter==='all'?'selected':'')+'>All words</option><option value="unknown" '+(wordFilter==='unknown'?'selected':'')+'>My words</option></select></label></div><div id="word-list">'+wordRows()+'</div></div>';
+      '<label>Show<select id="word-filter"><option value="all" '+(wordFilter==='all'?'selected':'')+'>All words</option><option value="unknown" '+(wordFilter==='unknown'?'selected':'')+'>My words</option><option value="hidden" '+(wordFilter==='hidden'?'selected':'')+'>Hidden words</option></select></label></div><div id="word-list">'+wordRows()+'</div></div>';
   }
   function resultScreen(){
     const last=state.last;
@@ -297,12 +317,25 @@
       '<p class="muted">My words is available any time. Words stay there until you remove them in the library.</p>'+
       '<div class="actions">'+link('Continue '+(last.mode==='learn'?'learning':'practice'),last.mode,'primary')+link('My words','my-words','outline')+link('Vocabulary home','home','quiet')+'</div></section></div>';
   }
+  function updateUndo(){
+    let toast=document.getElementById('word-undo');
+    if(!undoWord){toast?.remove();return;}
+    if(!toast){
+      toast=document.createElement('div');
+      toast.id='word-undo';
+      toast.className='word-undo';
+      toast.setAttribute('role','status');
+      app.append(toast);
+    }
+    toast.innerHTML=html(undoWord)+' hidden · '+button('Undo','undo-hide','outline');
+  }
   function render(focus=false,focusId){
     const current=route();
     app.innerHTML=(!storageAvailable?'<p class="notice" role="status">Browser storage is unavailable. Progress will last only in this open page.</p>':'')+
       (current==='session'?sessionScreen():current==='learn'||current==='practice'?setup(current):
         current==='words'||current==='my-words'?dictionary():current==='results'?resultScreen():dashboard())+
       '<p class="notice" id="voice-status" role="status" '+(!voiceMessage?'hidden':'')+'>'+html(voiceMessage)+'</p>';
+    updateUndo();
     if(focus||focusId) (document.getElementById(focusId)||app).focus();
   }
 
@@ -330,6 +363,29 @@
     const word=control.dataset.word;
     const index=Number(control.dataset.index);
     if(action==='listen') return listen(word);
+    if(action==='hide-word'||action==='restore-word'){
+      const previous=state.progress[word];
+      state.progress[word]={...(previous||{attempts:0,correct:0,streak:0}),hidden:action==='hide-word'};
+      if(!persist()){
+        if(previous)state.progress[word]=previous;else delete state.progress[word];
+        render();
+        return;
+      }
+      clearTimeout(undoTimer);
+      undoWord=action==='hide-word'?word:null;
+      if(undoWord)undoTimer=setTimeout(()=>{undoWord=null;updateUndo();},10000);
+      render();
+      return;
+    }
+    if(action==='undo-hide'&&undoWord){
+      const wordToRestore=undoWord;
+      state.progress[wordToRestore].hidden=false;
+      if(!persist()){state.progress[wordToRestore].hidden=true;render();return;}
+      clearTimeout(undoTimer);
+      undoWord=null;
+      render();
+      return;
+    }
     if(action==='toggle-word'){
       const p=state.progress[word]||{attempts:0,correct:0,streak:0};
       p.unknown=!p.unknown;
