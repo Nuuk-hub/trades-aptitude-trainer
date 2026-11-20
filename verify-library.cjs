@@ -40,13 +40,13 @@ async function verify(){
 
   await page.locator('#word-filter').selectOption('all');
   await action('study').click();
-  assert.equal(await action('know').count(),1);
-  await action('reveal').click();
+  assert.equal(await action('next').count(),1);
+  assert.equal(await action('reveal').count(),0);
   if(process.env.VOCAB_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.VOCAB_SCREENSHOT_DIR,'library-matching-buttons.png'),fullPage:true});
-  const a=await action('know').boundingBox(),b=await action('again').boundingBox();
+  const a=await action('next').boundingBox(),b=await action('again').boundingBox();
   assert.equal(a.width,b.width);
   assert.equal(a.height,b.height);
-  await action('know').click();
+  await action('next').click();
   assert.equal((await saved()).progress.reluctant.hidden,false);
 
   // All hidden except one target: both practice types and Learn must respect hiding.
