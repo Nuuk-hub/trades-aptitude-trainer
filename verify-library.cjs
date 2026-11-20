@@ -97,7 +97,8 @@ async function verify(){
     credit:parseFloat(getComputedStyle(document.querySelector('.project-credit')).fontSize),
     gap:parseFloat(getComputedStyle(document.querySelector('.project-credit')).marginTop)
    }));
-   assert(Math.abs(sizes.credit/sizes.note-1.5)<.02);
+   assert(Math.abs(sizes.credit-sizes.note)<.02);
+   assert(Math.abs(sizes.note-(13.6/1.5))<.05);
    assert(sizes.gap>=16);
   }
   // Isolate current browser choices from a new visitor.
