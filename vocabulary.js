@@ -264,7 +264,7 @@
           '“'+html(item.word)+'” and “'+html(item.answer)+'” have '+(item.type==='synonym'?'similar':'opposite')+' meanings.')+'</p>'+
         (item.type!=='meaning'?meaning(item.answer):'')+
         (s.aided?'<p>You opened a meaning. This word will stay in My words for another try.</p>':'')+'</div>':'')+
-      '<div class="actions session-actions">'+(learn?(s.revealed?button('Review again','again','outline')+button('I know this →','know','primary'):''):
+      '<div class="actions session-actions">'+(learn?button('I know this →','know','outline know-word')+(s.revealed?button('Review again','again','outline'):''):
         s.checked?button(s.pos+1===s.items.length?'See results →':'Next word →','next','primary'):
         button('Check answer','check','primary',s.selected===null?'disabled':''))+'</div></section>'+
         '<p class="muted help-copy">Each word can be added once more to this session for a retry. My words is available any time from Vocabulary home.</p></div>';

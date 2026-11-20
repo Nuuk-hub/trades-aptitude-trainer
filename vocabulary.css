@@ -33,4 +33,5 @@
 .dictionary-row .actions{margin-top:8px;gap:4px}
 .dictionary-row details{padding-bottom:0}
 #vocabulary-app:focus{outline:none}
+.know-word{min-height:44px;padding:7px 12px;font-size:.9rem}
 @media(max-width:470px){.vocab-hero{padding:25px}.dictionary-filters{grid-template-columns:1fr}.dictionary-row{padding:16px}.word-card .vocab-word{font-size:2.6rem}.word-status{white-space:normal;text-align:right}}
