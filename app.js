@@ -219,14 +219,14 @@ function home() {
   const total=key=>all.reduce((sum,m)=>sum+m[key],0);
   const last=data.lastExam?link('View last exam results','last-exam','quiet'):'';
   return '<section class="hero">'+
-    '<div class="hero-copy"><p class="eyebrow">Manitoba Hydro trades preparation</p><h1>Trades Aptitude Trainer</h1>'+
-    '<p>Build your skills with original practice questions or run all four sections under timed conditions.</p>'+
+    '<div class="hero-copy"><p class="eyebrow">Trades aptitude preparation</p><h1>Trades Aptitude Trainer</h1>'+
+    '<p>Build your skills with practice exercises or run all four sections under timed conditions.</p>'+
     '<div class="actions">'+link('Exam Simulation <span aria-hidden="true">→</span>','exam','light')+last+'</div></div>'+
     '<svg class="hero-art" viewBox="0 0 380 260" aria-hidden="true"><defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#f6d6b2" opacity=".15"/></pattern></defs><rect width="380" height="260" fill="url(#grid)"/><g fill="none" stroke="#ffc286" stroke-width="2"><circle cx="218" cy="128" r="76"/><circle cx="218" cy="128" r="59"/><circle cx="218" cy="128" r="19"/><circle cx="218" cy="128" r="7"/><path d="M111 128h214M218 22v212M164 74l108 108m0-108L164 182" stroke-dasharray="5 6" opacity=".7"/><path d="M168 52l-8-12 17-10 8 13m65 0 8-13 17 10-8 12m33 45 14-3 4 19-14 3m0 26 14 3-4 19-14-3m-31 42 8 12-17 10-8-13m-64 0-8 13-17-10 8-12m-33-42-14 3-4-19 14-3m0-26-14-3 4-19 14 3"/><circle cx="308" cy="195" r="31"/><circle cx="308" cy="195" r="12"/></g></svg></section>'+
     '<section class="stats" aria-label="Progress">'+stat('Answers recorded',total('attempts'))+stat('Accuracy',score(total('correct'),total('attempts')))+stat('Due for review',total('due'))+
     stat('Avg. answer time',total('attempts')?Math.round(total('seconds')/total('attempts'))+'s':'—')+'</section>'+
     (data.active?'<div class="resume"><span>You have a '+(data.active.mode==='exam'?'simulation':'practice set')+' in progress.</span>'+link('Resume session','session','primary')+'</div>':'')+
-    '<div class="section-head"><h2>Practice by section</h2><span>400 original questions</span></div>'+
+    '<div class="section-head"><h2>Practice by section</h2><span>400 practice questions</span></div>'+
     '<div class="cards">'+sections.map((s,index)=>{
       const m=all[index];
       return '<article class="card">'+icon(s.icon)+'<div><p class="eyebrow">'+s.count+' questions</p><h3>'+s.name+'</h3><p>'+s.detail+'</p></div>'+
@@ -378,6 +378,7 @@ function render(focus) {
     route==='session'&&s?(s.mode==='practice'?practiceSession(s):examSession(s)):home();
   app.innerHTML=warning()+screen;
   document.querySelectorAll('nav a').forEach(a=>{
+    if (!a.hash) return;
     const isExam=route==='exam'||route==='last-exam'||route==='session'&&s?.mode==='exam'||route==='results'&&data.results?.mode==='exam';
     if (isExam===(a.hash==='#exam')) a.setAttribute('aria-current','page');
     else a.removeAttribute('aria-current');

@@ -1,6 +1,8 @@
-# Manitoba Hydro Trades Aptitude Trainer
+# Trades Aptitude Trainer
 
-An independent English-language practice site for trades applicants. The site includes 400 original questions: 160 Verbal Comprehension, 80 Mechanical Comprehension, 80 Numerical Reasoning and 80 Technical Understanding. Each question has five options and one keyed answer. All mechanical questions include labelled SVG diagrams with text descriptions.
+An independent English-language educational project for trades applicants, developed with AI assistance using question formats from preparation materials. The site includes 400 practice questions: 160 Verbal Comprehension, 80 Mechanical Comprehension, 80 Numerical Reasoning and 80 Technical Understanding. Each question has five options and one keyed answer. All mechanical questions include labelled SVG diagrams with text descriptions.
+
+This project is not affiliated with any employer or testing provider and does not reproduce actual recruitment test questions.
 
 ## Open or publish
 
@@ -14,6 +16,10 @@ The site uses relative asset paths and hash navigation. It needs no build step, 
 
 ## Use the trainer
 
+- **Vocabulary Cards** opens a separate English-language vocabulary page. It includes 766 words and phrases with contextual Russian translations and English definitions, plus 119 examples with Russian translations. All verbal answer terms are covered. **Learn** reveals cards and lets you mark words for another review. **Practice** uses the original 120 synonym/antonym pairs or English-meaning choices. Each answer word in relation practice has its own meaning button. **My words** stores items marked for review, and the library supports English or Russian search.
+- **Listen** uses the browser’s speech synthesis and selects an English voice when available. Voice availability and audio output depend on the device. Speech requests were tested in desktop Chromium. Audible playback on physical iPad Edge remains to be checked.
+- Vocabulary progress uses its own browser-storage key, separate from the original test progress. Opening help during a practice question keeps that word in My words. Unaided recall or marking a card known schedules a later review. Due reviews return after 24 hours, then 3, 7, 14 and 30 days after consecutive successes. Review-again cards can repeat once in the current set.
+
 - **Practice** lets you choose a section, difficulty and set length. Check each answer to see the explanation. An incorrect item can recur after several questions in the same set. Review Mistakes gives priority to due or recently missed items. Correct recall schedules later reviews at approximately 1, 3, 7, 14 and 30 days. Misses reset the interval. Practice Weak Areas emphasizes topics with higher error rates.
 - **Exam Simulation** gives each section a separate countdown. Set the question counts and minutes before beginning. Use Next / Skip or the question navigator to revisit items within a section. Submitting or running out of time locks the section, then the next section waits for you to begin. Feedback is available after the final section, with correct counts, unanswered counts, percentages, and explanations for missed and skipped items.
 - **Generate New Questions** in Numerical Reasoning creates new variants locally from 16 arithmetic templates. The offset is saved, so consecutive sets use new parameter values. Generated mistakes can enter spaced review.
@@ -21,17 +27,18 @@ The site uses relative asset paths and hash navigation. It needs no build step, 
 
 ## Source alignment and timing
 
-The two supplied Manitoba Hydro documents were used as references:
+Preparation materials informed the exercise formats and suggested short-drill pacing:
 
-- **Trade Recruitment Prep Guide.pdf** (Written Ability Tests Preparation Booklet, pp. 1–7) informed verbal vocabulary and sentence formats, diagram-based mechanical reasoning, numerical word problems and passage-based technical questions. The drill uses the booklet’s suggested pacing and example counts: 8 verbal in 3 minutes, 4 mechanical in 2 minutes, 6 numerical in 3 minutes, and 4 technical in 2 minutes.
-- **Testing Tips Trades.pdf** (pp. 1–2) informed separately timed sections, breaks, skip-and-return navigation and an A–E answer grid. It says the administrator supplies the actual time limits and question counts.
+- Preparation-booklet exercises informed verbal vocabulary and sentence formats, diagram-based mechanical reasoning, numerical word problems and passage-based technical questions. The short drill uses 8 verbal questions in 3 minutes, 4 mechanical in 2 minutes, 6 numerical in 3 minutes, and 4 technical in 2 minutes.
+- General testing guidance informed separately timed sections, breaks, skip-and-return navigation and an A–E answer grid. Actual recruitment test limits are provided by the test administrator.
 
-The trainer uses fresh items and diagrams. The official samples, logos and source PDFs are excluded from the site package. The extended preset uses 16/12/12/12 questions and 6 minutes per section as adjustable trainer defaults. The simulation reports scores without an official pass threshold.
+The exercises and diagrams were developed for this educational project with AI assistance. The extended preset uses 16/12/12/12 questions and 6 minutes per section as adjustable trainer defaults. Scores describe practice performance. The project has no employer-specific pass threshold.
 
 ## Maintain and verify
 
 - `verbal.js`, `mechanical-concepts.js`, and `technical-scenarios.js` contain authored answer sets. The first option on each row is the key. `bank.js` assigns stable IDs and shuffles answer positions deterministically. `diagrams.js` draws the mechanical schematics. Keep existing item IDs and option order stable when publishing updates to preserve in-progress sessions.
 - `node verify.cjs` checks the 400-item split, stable and unique IDs, distinct options, keyed answers for the calculation items, 80 diagram outputs, and 1,600 generated numeric variants. It also checks that the AI stub is disabled.
+- `node verify-vocabulary.cjs` verifies vocabulary coverage and browser flows, including saved vocabulary sessions, due review, help use, speech requests, translation search and preservation of existing test progress. It uses the same optional Playwright setup described below.
 - `node verify.cjs --browser` adds Playwright flow tests. Install Playwright and its Chromium browser for this optional check. Set `BROWSER_EXECUTABLE` to use an existing desktop Chromium binary, and `PLAYWRIGHT_MODULE` if Playwright is installed outside this folder. The test intercepts requests at a mock project URL and serves files from this directory. The app itself needs no test dependencies.
 - Browser verification used desktop Chromium at 820 × 1180, 1180 × 820 and 390 × 844. Physical iPad Edge remains to be verified.
 

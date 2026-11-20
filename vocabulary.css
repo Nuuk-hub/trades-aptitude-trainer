@@ -1,0 +1,36 @@
+.vocab-hero{padding:32px 38px;background:var(--forest);color:#fff8eb;border-radius:22px}
+.vocab-hero h1{font-size:clamp(2.1rem,4.4vw,3.8rem);max-width:750px;margin:10px 0 16px}
+.vocab-hero .eyebrow{color:var(--gold)}
+.vocab-hero>p:last-child{max-width:600px;color:#dae8dd}
+.mode-symbol{display:grid;place-items:center;width:48px;height:48px;border-radius:12px;color:var(--forest);background:var(--mint);font-size:24px;font-weight:750}
+.mode-symbol.peach{background:#f6e6d1;color:#72431e}
+.vocab-modes h2{font-size:1.3rem}
+.help-copy{max-width:800px;margin:18px auto;font-size:.9rem}
+#vocabulary-setup .fields{margin-top:22px}
+.word-card{padding:clamp(22px,4vw,40px)}
+.word-card .vocab-word{font-size:clamp(2.6rem,7vw,4.5rem);margin:20px 0 12px;overflow-wrap:anywhere}
+.word-tools{margin:18px 0}
+.reveal-box{border-radius:12px;background:#eef3ea;padding:18px;margin:12px 0 24px}
+.translation{font-weight:700;font-size:1.25rem;color:var(--forest);margin-bottom:9px}
+.meaning-label{display:block;font-size:.73rem;color:var(--muted);text-transform:uppercase;font-weight:700;letter-spacing:.1em;margin-bottom:3px}
+.word-meaning p+p{margin-top:7px}
+.example{padding:12px 0 0;margin-top:12px;border-top:1px solid #cbd8c9}
+.example p:last-child{color:var(--muted)}
+.session-actions{border-top:1px solid var(--line);padding-top:18px}
+.vocab-options{display:grid;gap:10px;margin-top:22px}
+.vocab-option-row{border:1px solid #cdd8cd;border-radius:10px;overflow:hidden}
+.vocab-option-row .option{border:0;border-radius:0}
+.option-help{padding:4px 12px;min-height:44px;font-size:.85rem;display:flex;color:var(--green);text-decoration:underline}
+.option-definition{background:#f0f3ec;padding:13px 16px;border-top:1px solid var(--line)}
+.option-definition .translation{font-size:1rem}
+.option-definition .listen{margin-top:9px}
+.dictionary-filters{margin:22px 0 15px;grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+.search-count{margin:0 0 10px}
+.dictionary-row{margin-bottom:12px;padding:18px 22px}
+.dictionary-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.dictionary-head h2{overflow-wrap:anywhere}
+.word-status{font-size:.78rem;color:var(--muted);white-space:nowrap}
+.dictionary-row .actions{margin-top:8px;gap:4px}
+.dictionary-row details{padding-bottom:0}
+#vocabulary-app:focus{outline:none}
+@media(max-width:470px){.vocab-hero{padding:25px}.dictionary-filters{grid-template-columns:1fr}.dictionary-row{padding:16px}.word-card .vocab-word{font-size:2.6rem}.word-status{white-space:normal;text-align:right}}
